@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>블랙제리 썸네일 자동 생성기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;900&family=Noto+Serif+KR:wght@400;700;900&family=IBM+Plex+Sans+KR:wght@400;500;700&family=Gowun+Dodum&family=Gowun+Batang:wght@400;700&family=Bebas+Neue&family=Black+Han+Sans&family=Gothic+A1:wght@500;700;900&family=Nanum+Gothic:wght@400;700;800&family=Do+Hyeon&family=Jua&family=Anton&family=Archivo+Black&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="hd-logo">BLACKJELLY THUMBNAIL STUDIO</div>
+      <div class="hd-sub">상단에서 AI 멘트 생성 → 큰 미리보기에서 수정 → 아래로 내려가 후보안 선택</div>
+    </div>
+    <div class="topbar-right">
+      <div class="hero-pill hero-ai">AI 멘트 생성: 상단 큰 버튼</div>
+      <div class="live-pill"><div class="dot" id="liveDot"></div><span id="liveStatus">연결 중...</span></div>
+    </div>
+  </header>
+
+  <main class="page-scroll">
+    <section class="stage-viewport">
+      <section class="compact-controls hero-panel">
+        <div class="compact-row compact-head-row">
+          <div class="left-title-wrap">
+            <div class="hero-title">생성 모드</div>
+            <div class="hero-desc">첫 화면에 생성과 큰 미리보기가 모두 들어오도록 압축했습니다.</div>
+          </div>
+          <button class="toggle-advanced" id="btnAdvancedToggle" type="button">AI 스타일 생성 설정 열기</button>
+        </div>
+
+        <div class="compact-row mode-line">
+          <button class="mode-chip active" data-content="bitcoin" type="button"><strong>비트코인</strong><span>기본 브리핑</span></button>
+          <button class="mode-chip" data-content="alt" type="button"><strong>알트코인</strong><span>순환매 / 후보형</span></button>
+          <div class="field compact small-field">
+            <label for="selCandidateCount">후보안</label>
+            <select id="selCandidateCount"><option value="3">3안</option><option value="6">6안</option><option value="9">9안</option></select>
+          </div>
+          <button class="dl-btn primary big" id="btnGenerate" type="button">AI 멘트 생성</button>
+          <button class="dl-btn secondary" id="btnRefresh" type="button">다시 생성</button>
+          <button class="dl-btn secondary" id="btnOptimize" type="button">CTR 최적화</button>
+          <button class="dl-btn secondary" id="btnDownload" type="button">PNG 저장</button>
+        </div>
+
+        <div class="advanced-box" id="advancedToneBox" hidden>
+          <div class="advanced-head">AI 스타일 생성 설정</div><div class="advanced-help">AI가 경고형 / 상승형 / 반전형 톤을 더 강하게 반영하는 영역입니다.</div>
+          <div class="advanced-tone-grid">
+            <button class="btn t-red" data-type="warning" type="button">경고</button>
+            <button class="btn t-green" data-type="rising" type="button">상승</button>
+            <button class="btn t-blue" data-type="reversal" type="button">반전</button>
+            <button class="btn t-gold" data-type="chance" type="button">기회</button>
+            <button class="btn" data-type="auto" type="button">자동</button>
+          </div>
+        </div>
+
+        <div class="compact-row second-line">
+          <div class="row-group">
+            <span class="row-lbl">차트 기간</span>
+            <button class="btn active" data-period="1" type="button">1일봉</button>
+            <button class="btn" data-period="7" type="button">12시간봉</button>
+            <button class="btn" data-period="14" type="button">5시간봉</button>
+          </div>
+          <div class="row-group preset-group">
+            <span class="row-lbl">프리셋</span>
+            <div class="preset-grid compact-preset-grid">
+              <button class="preset-chip active" data-preset="auto" type="button">AUTO</button>
+              <button class="preset-chip" data-preset="breakout" type="button">돌파</button>
+              <button class="preset-chip" data-preset="warning" type="button">경고</button>
+              <button class="preset-chip" data-preset="level" type="button">가격</button>
+              <button class="preset-chip" data-preset="reversal" type="button">반전</button>
+              <button class="preset-chip" data-preset="tension" type="button">불안</button>
+              <button class="preset-chip" data-preset="alt" type="button">알트</button>
+            </div>
+          </div>
+          <div class="auto-tag" id="autoTag">AUTO OFF</div>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="preview-column">
+          <div class="cwrap preview-hero">
+            <canvas id="thumb" width="1280" height="720"></canvas>
+            <div class="loading" id="loadEl"><div class="spin"></div><div>BTC 데이터 불러오는 중</div></div>
+          </div>
+          <div class="stats compact-stats">
+            <div class="stat"><div class="sl">현재가</div><div class="sv" id="sP">-</div></div>
+            <div class="stat"><div class="sl">변동률</div><div class="sv" id="sC">-</div></div>
+            <div class="stat"><div class="sl">고점</div><div class="sv up" id="sH">-</div></div>
+            <div class="stat"><div class="sl">저점</div><div class="sv dn" id="sL">-</div></div>
+            <div class="stat"><div class="sl">추세</div><div class="sv" id="sT">-</div></div>
+            <div class="stat"><div class="sl">CTR</div><div class="sv" id="sCtr">-</div></div>
+          </div>
+        </div>
+
+        <aside class="sidebar compact-sidebar" id="sidePanel">
+          <div class="sidebar-head"><div><div class="s-ttl">빠른 수정</div><div class="panel-sub">비트코인 문구 크기, 사진, 도형, 추가 텍스트까지 여기서 한 번에 조정합니다.</div></div></div>
+
+          <details open class="editor-group">
+            <summary>기본 문구</summary>
+            <div class="group-body">
+              <div class="field"><label for="iBadge">배지 텍스트</label><input type="text" id="iBadge" value="비트코인"></div>
+              <div class="field"><label for="iMain">메인 문구</label><input type="text" id="iMain" value="이 자리부터 해석이 달라"></div>
+              <div class="field"><label for="iEm">강조 문구</label><input type="text" id="iEm" value="다음 파동 시작점"></div>
+              <div class="field"><label for="iSub">서브 문구</label><input type="text" id="iSub" value="오늘 비트코인 기준선만 정확히 보면 됩니다"></div>
+              <div class="field"><label for="iTitle">제목 추천</label><input type="text" id="iTitle" value="비트코인 오늘 핵심 가격대와 대응 전략을 빠르게 정리합니다"></div>
+            </div>
+          </details>
+
+          <details class="editor-group" open>
+            <summary>업로드 이미지</summary>
+            <div class="group-body">
+              <div class="field"><label for="imgUpload">사진 업로드 (최대 5장)</label><input type="file" id="imgUpload" accept="image/*" multiple></div>
+              <div class="two-col">
+                <div class="field"><label for="selOverlayImage">선택 사진</label><select id="selOverlayImage"><option value="">사진 없음</option></select></div>
+                <div class="field"><label for="btnFlipImage">좌우 뒤집기</label><button class="btn full" id="btnFlipImage" type="button">선택 사진 좌우 뒤집기</button></div>
+              </div>
+              <div class="preset-row"><button class="btn" id="btnRemoveImage" type="button">선택 사진 제거</button><button class="btn" type="button" onclick="document.getElementById('imgUpload').click()">사진 추가</button></div>
+              <div class="two-col">
+                <div class="field"><label for="rOverlayScale">크기 <span id="vOverlayScale">100</span></label><input type="range" id="rOverlayScale" min="20" max="220" value="100"></div>
+                <div class="field"><label for="rOverlayOpacity">투명도 <span id="vOverlayOpacity">100</span></label><input type="range" id="rOverlayOpacity" min="20" max="100" value="100"></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rOverlayX">가로 위치 <span id="vOverlayX">980</span></label><input type="range" id="rOverlayX" min="0" max="1280" value="980"></div>
+                <div class="field"><label for="rOverlayY">세로 위치 <span id="vOverlayY">120</span></label><input type="range" id="rOverlayY" min="0" max="720" value="120"></div>
+              </div>
+            </div>
+          </details>
+
+          <details class="editor-group" open>
+            <summary>도형 강조 · 추가 텍스트</summary>
+            <div class="group-body">
+              <div class="section-caption">원 / 화살표 / 네모박스를 추가하고 위치와 크기를 조절합니다.</div>
+              <div class="shape-toolbar">
+                <button class="btn shape-add" data-shape-add="circle" type="button">원</button>
+                <button class="btn shape-add" data-shape-add="box" type="button">네모</button>
+                <button class="btn shape-add" data-shape-add="arrow-up" type="button">↑</button>
+                <button class="btn shape-add" data-shape-add="arrow-down" type="button">↓</button>
+                <button class="btn shape-add" data-shape-add="arrow-left" type="button">←</button>
+                <button class="btn shape-add" data-shape-add="arrow-right" type="button">→</button>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="selShape">선택 도형</label><select id="selShape"><option value="">도형 없음</option></select></div>
+                <div class="field"><label for="shapeColor">도형 색상</label><input type="color" id="shapeColor" value="#00ffc8"></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="shapeSize">도형 크기 <span id="vShapeSize">120</span></label><div class="range-number"><input type="range" id="shapeSize" min="30" max="420" value="120"><input type="number" id="nShapeSize" min="30" max="420" value="120"></div></div>
+                <div class="field"><label for="shapeSecondary"><span id="shapeSecondaryLabel">선 두께</span> <span id="vShapeSecondary">10</span></label><div class="range-number"><input type="range" id="shapeSecondary" min="2" max="26" value="10"><input type="number" id="nShapeSecondary" min="2" max="26" value="10"></div></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="shapeX">도형 X <span id="vShapeX">950</span></label><div class="range-number"><input type="range" id="shapeX" min="0" max="1280" value="950"><input type="number" id="nShapeX" min="0" max="1280" value="950"></div></div>
+                <div class="field"><label for="shapeY">도형 Y <span id="vShapeY">250</span></label><div class="range-number"><input type="range" id="shapeY" min="0" max="720" value="250"><input type="number" id="nShapeY" min="0" max="720" value="250"></div></div>
+              </div>
+              <div class="preset-row">
+                <button class="btn" id="btnDeleteShape" type="button">선택 도형 삭제</button>
+                <button class="btn" id="btnClearShapes" type="button">도형 전체 삭제</button>
+              </div>
+              <div class="divider-line"></div>
+              <div class="section-caption">추가 텍스트를 한 줄 더 넣을 수 있습니다.</div>
+              <div class="field"><label for="iExtraText">추가 텍스트</label><input type="text" id="iExtraText" value=""></div>
+              <div class="two-col">
+                <div class="field"><label for="rExtraSize">추가 텍스트 크기</label><div class="range-number"><input type="range" id="rExtraSize" min="18" max="90" value="42"><input type="number" id="nExtraSize" min="18" max="90" value="42"></div></div>
+                <div class="field"><label for="extraColor">추가 텍스트 색상</label><input type="color" id="extraColor" value="#ffffff"></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rExtraX">추가 텍스트 X</label><div class="range-number"><input type="range" id="rExtraX" min="0" max="1280" value="980"><input type="number" id="nExtraX" min="0" max="1280" value="980"></div></div>
+                <div class="field"><label for="rExtraY">추가 텍스트 Y</label><div class="range-number"><input type="range" id="rExtraY" min="0" max="720" value="640"><input type="number" id="nExtraY" min="0" max="720" value="640"></div></div>
+              </div>
+              <div class="field"><label for="selExtraFont">추가 텍스트 폰트</label><select id="selExtraFont"><option value="Black Han Sans">Black Han Sans</option><option value="Do Hyeon">Do Hyeon</option><option value="Jua">Jua</option><option value="Gothic A1">Gothic A1</option><option value="Noto Sans KR">Noto Sans KR</option><option value="IBM Plex Sans KR">IBM Plex Sans KR</option><option value="Gowun Dodum">Gowun Dodum</option><option value="Nanum Gothic">Nanum Gothic</option><option value="Noto Serif KR">Noto Serif KR</option><option value="Gowun Batang">Gowun Batang</option><option value="Anton">Anton (영문/숫자)</option><option value="Archivo Black">Archivo Black (영문/숫자)</option><option value="Oswald">Oswald (영문/숫자)</option><option value="Bebas Neue">Bebas Neue (영문/숫자)</option></select></div>
+            </div>
+          </details>
+
+          <details class="editor-group">
+            <summary>비트코인 문구 크기 · 폰트</summary>
+            <div class="group-body">
+              <div class="two-col">
+                <div class="field"><label for="selMainFont">메인 폰트</label><select id="selMainFont"><option value="Black Han Sans">Black Han Sans</option><option value="Do Hyeon">Do Hyeon</option><option value="Jua">Jua</option><option value="Gothic A1">Gothic A1</option><option value="Noto Sans KR">Noto Sans KR</option><option value="IBM Plex Sans KR">IBM Plex Sans KR</option><option value="Gowun Dodum">Gowun Dodum</option><option value="Nanum Gothic">Nanum Gothic</option><option value="Noto Serif KR">Noto Serif KR</option><option value="Gowun Batang">Gowun Batang</option><option value="Anton">Anton (영문/숫자)</option><option value="Archivo Black">Archivo Black (영문/숫자)</option><option value="Oswald">Oswald (영문/숫자)</option><option value="Bebas Neue">Bebas Neue (영문/숫자)</option></select></div>
+                <div class="field"><label for="selEmFont">강조 폰트</label><select id="selEmFont"><option value="Black Han Sans">Black Han Sans</option><option value="Do Hyeon">Do Hyeon</option><option value="Jua">Jua</option><option value="Gothic A1">Gothic A1</option><option value="Noto Sans KR">Noto Sans KR</option><option value="IBM Plex Sans KR">IBM Plex Sans KR</option><option value="Gowun Dodum">Gowun Dodum</option><option value="Nanum Gothic">Nanum Gothic</option><option value="Noto Serif KR">Noto Serif KR</option><option value="Gowun Batang">Gowun Batang</option><option value="Anton">Anton (영문/숫자)</option><option value="Archivo Black">Archivo Black (영문/숫자)</option><option value="Oswald">Oswald (영문/숫자)</option><option value="Bebas Neue">Bebas Neue (영문/숫자)</option></select></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rBadgeSize">배지(비트코인)</label><div class="range-number"><input type="range" id="rBadgeSize" min="14" max="42" value="22"><input type="number" id="nBadgeSize" min="14" max="42" value="22"></div></div>
+                <div class="field"><label for="rMainSize">메인 문구</label><div class="range-number"><input type="range" id="rMainSize" min="44" max="120" value="82"><input type="number" id="nMainSize" min="44" max="120" value="82"></div></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rEmSize">강조 문구</label><div class="range-number"><input type="range" id="rEmSize" min="54" max="150" value="98"><input type="number" id="nEmSize" min="54" max="150" value="98"></div></div>
+                <div class="field"><label for="rSubSize">서브 문구</label><div class="range-number"><input type="range" id="rSubSize" min="16" max="42" value="28"><input type="number" id="nSubSize" min="16" max="42" value="28"></div></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="selSubFont">서브 폰트</label><select id="selSubFont"><option value="Black Han Sans">Black Han Sans</option><option value="Do Hyeon">Do Hyeon</option><option value="Jua">Jua</option><option value="Gothic A1">Gothic A1</option><option value="Noto Sans KR" selected>Noto Sans KR</option><option value="IBM Plex Sans KR">IBM Plex Sans KR</option><option value="Gowun Dodum">Gowun Dodum</option><option value="Nanum Gothic">Nanum Gothic</option><option value="Noto Serif KR">Noto Serif KR</option><option value="Gowun Batang">Gowun Batang</option><option value="Anton">Anton (영문/숫자)</option><option value="Archivo Black">Archivo Black (영문/숫자)</option><option value="Oswald">Oswald (영문/숫자)</option><option value="Bebas Neue">Bebas Neue (영문/숫자)</option></select></div>
+                <div class="field"><label>폰트 안내</label><div class="panel-sub">영문/숫자 전용 폰트는 한글 문구에서 기본 한글 폰트로 자동 대체될 수 있습니다.</div></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rGlow">글로우</label><div class="range-number"><input type="range" id="rGlow" min="0" max="30" value="12"><input type="number" id="nGlow" min="0" max="30" value="12"></div></div>
+                <div class="field"><label>안내</label><div class="panel-sub">숫자칸을 직접 수정하거나 마우스 휠로도 값 조절이 됩니다.</div></div>
+              </div>
+            </div>
+          </details>
+
+          <details class="editor-group">
+            <summary>위치 · 강조</summary>
+            <div class="group-body">
+              <div class="two-col">
+                <div class="field"><label for="selPointMode">포인트 강조</label><select id="selPointMode"><option value="auto">auto</option><option value="circle">circle</option><option value="box">box</option><option value="zone">zone</option></select></div>
+                <div class="field"><label for="selCharacterMode">캐릭터 반응형</label><select id="selCharacterMode"><option value="auto">auto</option><option value="focus">focus</option><option value="calm">calm</option><option value="off">off</option></select></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rMainY">메인 Y</label><div class="range-number"><input type="range" id="rMainY" min="80" max="260" value="168"><input type="number" id="nMainY" min="80" max="260" value="168"></div></div>
+                <div class="field"><label for="rEmY">강조 Y</label><div class="range-number"><input type="range" id="rEmY" min="30" max="180" value="78"><input type="number" id="nEmY" min="30" max="180" value="78"></div></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rChartPadTop">차트 상단</label><div class="range-number"><input type="range" id="rChartPadTop" min="20" max="200" value="200"><input type="number" id="nChartPadTop" min="20" max="200" value="200"></div></div>
+                <div class="field"><label for="rChartPadRight">차트 우측</label><div class="range-number"><input type="range" id="rChartPadRight" min="10" max="220" value="42"><input type="number" id="nChartPadRight" min="10" max="220" value="42"></div></div>
+              </div>
+              <div class="section-caption">배경 효과를 여기서 바로 켜고 끌 수 있습니다.</div>
+              <div class="two-col">
+                <div class="field"><label for="selBgGradient">기본 그라데이션</label><select id="selBgGradient"><option value="on">on</option><option value="off">off</option></select></div>
+                <div class="field"><label for="selBgGlow">광원 효과</label><select id="selBgGlow"><option value="on">on</option><option value="off">off</option></select></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="selBgBeam">빔 효과</label><select id="selBgBeam"><option value="on">on</option><option value="off">off</option></select></div>
+                <div class="field"><label for="selBgGrid">격자</label><select id="selBgGrid"><option value="off">off</option><option value="on">on</option></select></div>
+              </div>
+              <div class="field"><label for="selBgHorizon">하단 기준선</label><select id="selBgHorizon"><option value="on">on</option><option value="off">off</option></select></div>
+              <div class="two-col">
+                <div class="field"><label for="bgColorTop">배경 상단 색상</label><input type="color" id="bgColorTop" value="#091825"></div>
+                <div class="field"><label for="bgColorMid">배경 중단 색상</label><input type="color" id="bgColorMid" value="#0b1b27"></div>
+              </div>
+              <div class="field"><label for="bgColorBottom">배경 하단 색상</label><input type="color" id="bgColorBottom" value="#08131d"></div>
+              <div class="two-col">
+                <div class="field"><label for="bgGlowColor">퍼짐 색상</label><input type="color" id="bgGlowColor" value="#45c8ff"></div>
+                <div class="field"><label for="bgBeamColor">사선 빔 색상</label><input type="color" id="bgBeamColor" value="#45c8ff"></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><label for="rLogoSize">로고 <span id="vLogoSize">92</span></label><input type="range" id="rLogoSize" min="50" max="160" value="92"></div>
+                <div class="field"><label for="rChanSize">채널 글씨 <span id="vChanSize">18</span></label><input type="range" id="rChanSize" min="12" max="28" value="18"></div>
+              </div>
+              <div class="field"><label for="iChan">채널 텍스트</label><input type="text" id="iChan" value="블랙제리의 한입시황"></div>
+            </div>
+          </details>
+
+          <details class="editor-group advanced-only">
+            <summary>AI 스타일 생성 설정</summary>
+            <div class="group-body">
+              <div class="section-caption">이 영역은 AI가 어떤 느낌으로 문구를 뽑을지 정하는 곳입니다.</div>
+              <div class="field"><label for="selTone">AI 톤</label><select id="selTone"><option value="warning">warning</option><option value="rising">rising</option><option value="reversal">reversal</option><option value="chance">chance</option><option value="auto">auto</option></select></div>
+              <div class="field"><label for="selDiversify">시안 다양성 강도</label><select id="selDiversify"><option value="high">강하게</option><option value="medium">보통</option><option value="low">약하게</option></select></div>
+              <div class="field"><label for="selVisualPreset">현재 썸네일 프리셋</label><select id="selVisualPreset"><option value="auto">auto</option><option value="breakout">breakout</option><option value="warning">warning</option><option value="level">level</option><option value="reversal">reversal</option><option value="tension">tension</option><option value="alt">alt</option></select></div>
+              <div class="field"><label>최근 문구 이력</label><div class="history-box" id="historyBox">아직 저장된 문구가 없습니다.</div></div>
+            </div>
+          </details>
+
+          <details class="editor-group">
+            <summary>프리셋 저장</summary>
+            <div class="group-body">
+              <div class="field"><label for="iPresetName">프리셋 이름</label><input type="text" id="iPresetName" placeholder="예: 비트코인_실전형"></div>
+              <div class="field"><label for="selPresetList">저장된 프리셋</label><select id="selPresetList"><option value="">프리셋 선택</option></select></div>
+              <div class="preset-row"><button class="btn" id="btnSavePreset" type="button">다른 이름 저장</button><button class="btn" id="btnLoadPreset" type="button">불러오기</button></div>
+            </div>
+          </details>
+        </aside>
+      </section>
+    </section>
+
+    <section class="candidate-panel below-fold">
+      <div class="panel-head wide">
+        <div><div class="s-ttl">후보안 3개</div><div class="panel-sub">스크롤하면 바로 시안 3개가 보입니다. 각 카드에서 큰 창 수정으로 들어가세요.</div></div>
+      </div>
+      <div class="candidate-list" id="candidateList"></div>
+    </section>
+
+    <details class="preview-card secondary-previews">
+      <summary>모바일 / 리스트 미리보기</summary>
+      <div class="preview-grid">
+        <article class="preview-card inner-preview"><div class="card-head"><span>모바일 미리보기</span><span id="mobileMeta">9:16 노출</span></div><div class="device-preview"><img id="mobilePreview" alt="모바일 미리보기"></div></article>
+        <article class="preview-card inner-preview"><div class="card-head"><span>리스트 미리보기</span><span id="listMeta">목록 CTR 감각</span></div><div class="list-preview"><img id="listThumb" alt="리스트 미리보기"><div class="list-copy"><div class="list-title" id="listTitle">제목 추천 대기 중</div><div class="list-sub">블랙제리의 한입시황 · 12분 전</div></div></div></article>
+      </div>
+    </details>
+  </main>
+
+  <div class="modal" id="editorModal" hidden>
+    <div class="modal-dialog">
+      <div class="modal-head">
+        <div><div class="modal-title">큰 창에서 수정</div><div class="modal-sub">왼쪽 미리보기는 고정입니다. 오른쪽 값만 바꾸면 바로 반영됩니다.</div></div>
+        <div class="modal-actions-top"><button class="btn" id="btnModalCancel" type="button">취소</button><button class="dl-btn primary" id="btnModalSave" type="button">적용 완료</button></div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-preview-sticky"><img id="modalPreviewImg" alt="큰 미리보기"></div>
+        <div class="modal-form">
+          <div class="field"><label for="mBadge">배지 텍스트</label><input type="text" id="mBadge"></div>
+          <div class="field"><label for="mMain">메인 문구</label><input type="text" id="mMain"></div>
+          <div class="field"><label for="mEm">강조 문구</label><input type="text" id="mEm"></div>
+          <div class="field"><label for="mSub">서브 문구</label><input type="text" id="mSub"></div>
+          <div class="field"><label for="mTitle">제목 추천</label><input type="text" id="mTitle"></div>
+          <div class="two-col"><div class="field"><label for="mPointMode">포인트 강조</label><select id="mPointMode"><option value="auto">auto</option><option value="circle">circle</option><option value="box">box</option><option value="zone">zone</option></select></div><div class="field"><label for="mTone">톤</label><select id="mTone"><option value="warning">warning</option><option value="rising">rising</option><option value="reversal">reversal</option><option value="chance">chance</option></select></div></div>
+          <div class="field"><label for="mPreset">시각 프리셋</label><select id="mPreset"><option value="auto">auto</option><option value="breakout">breakout</option><option value="warning">warning</option><option value="level">level</option><option value="reversal">reversal</option><option value="tension">tension</option><option value="alt">alt</option></select></div>
+          <div class="two-col"><div class="field"><label for="mMainSize">메인 크기</label><input type="range" id="mMainSize" min="44" max="120"></div><div class="field"><label for="mEmSize">강조 크기</label><input type="range" id="mEmSize" min="54" max="150"></div></div>
+          <div class="two-col"><div class="field"><label for="mSubSize">서브 크기</label><input type="range" id="mSubSize" min="16" max="42"></div><div class="field"><label for="mGlow">글로우</label><input type="range" id="mGlow" min="0" max="30"></div></div>
+          <div class="two-col"><div class="field"><label for="mMainY">메인 Y</label><input type="range" id="mMainY" min="80" max="260"></div><div class="field"><label for="mEmY">강조 Y</label><input type="range" id="mEmY" min="30" max="180"></div></div>
+          <div class="two-col"><div class="field"><label for="mChartPadTop">차트 상단</label><input type="range" id="mChartPadTop" min="20" max="200"></div><div class="field"><label for="mChartPadRight">차트 우측</label><input type="range" id="mChartPadRight" min="10" max="220"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
