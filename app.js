@@ -1542,6 +1542,13 @@ function saveSettings() {
   localStorage.setItem(LS_SETTINGS, JSON.stringify(values));
 }
 
+function buildPresetSnapshot() {
+  const values = readJson(LS_SETTINGS, {});
+  delete values.iPresetName;
+  delete values.selPresetList;
+  return values;
+}
+
 function restoreSettings() {
   try {
     const raw = localStorage.getItem(LS_SETTINGS);
@@ -1599,9 +1606,12 @@ function savePreset() {
   }
   const store = readJson(LS_PRESETS, {});
   saveSettings();
-  store[name] = readJson(LS_SETTINGS, {});
+  store[name] = buildPresetSnapshot();
   localStorage.setItem(LS_PRESETS, JSON.stringify(store));
   refreshPresetList(name);
+  document.getElementById("selPresetList").value = name;
+  document.getElementById("iPresetName").value = name;
+  alert(`프리셋 "${name}" 저장 완료`);
 }
 
 function loadPreset() {
@@ -1613,6 +1623,8 @@ function loadPreset() {
   }
   localStorage.setItem(LS_SETTINGS, JSON.stringify(store[name]));
   restoreSettings();
+  document.getElementById("selPresetList").value = name;
+  document.getElementById("iPresetName").value = name;
   syncLabels();
   pullControlsIntoState();
   redraw();
@@ -1784,12 +1796,41 @@ function saveEditorModal() {
   saveSettingsDebounced();
 }
 
+function triggerDownload(url, filename) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function makeDownloadFilename() {
+  const base = (S.title || S.main || "thumbnail")
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, "_")
+    .slice(0, 40)
+    .replace(/^_+|_+$/g, "");
+  return `${base || "thumbnail"}_${Date.now()}.png`;
+}
+
 function downloadPng() {
   redraw();
-  const a = document.createElement("a");
-  a.href = C.toDataURL("image/png");
-  a.download = `btc_thumbnail_${S.type}_${Date.now()}.png`;
-  a.click();
+  const filename = makeDownloadFilename();
+  if (typeof C.toBlob === "function") {
+    C.toBlob((blob) => {
+      if (!blob) {
+        triggerDownload(C.toDataURL("image/png"), filename);
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, filename);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, "image/png");
+    return;
+  }
+  triggerDownload(C.toDataURL("image/png"), filename);
 }
 
 function setLoading(isLoading) {
